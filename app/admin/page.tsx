@@ -16,8 +16,8 @@ interface Stats {
 
 const platformLabels: Record<string, string> = {
   telegram: 'Telegram',
-  max: 'MAX',
-  web: 'Веб'
+  vk: 'VK',
+  max: 'MAX'
 }
 
 export default function AdminPage() {

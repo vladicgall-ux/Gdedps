@@ -21,7 +21,7 @@ export async function GET() {
       db.from('dps_markers').select('*', { count: 'exact', head: true }).eq('kind', 'gas').gt('expires_at', nowIso)
     ])
 
-  const byPlatform: Record<string, number> = { telegram: 0, max: 0 }
+  const byPlatform: Record<string, number> = { telegram: 0, vk: 0, max: 0 }
   for (const u of users ?? []) {
     byPlatform[u.platform] = (byPlatform[u.platform] ?? 0) + 1
   }

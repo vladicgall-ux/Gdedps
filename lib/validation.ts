@@ -17,6 +17,21 @@ export const telegramAuthSchema = z.union([
     .passthrough()
 ])
 
+export const vkAuthSchema = z.union([
+  z.object({
+    launchParams: z.string().min(1).max(4096),
+    firstName: z.string().max(200).optional(),
+    lastName: z.string().max(200).optional(),
+    photoUrl: z.string().url().optional()
+  }),
+  z.object({
+    code: z.string().min(1).max(1024),
+    codeVerifier: z.string().min(1).max(256),
+    deviceId: z.string().min(1).max(256),
+    redirectUri: z.string().url()
+  })
+])
+
 export const maxAuthSchema = z
   .object({
     id: z.string().min(1).max(128),

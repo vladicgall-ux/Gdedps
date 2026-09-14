@@ -43,6 +43,19 @@ async function tryAutoLogin(): Promise<Platform | null> {
     }
   }
 
+  if (platform === 'vk' && window.location.search.includes('vk_user_id')) {
+    try {
+      const res = await fetch('/api/auth/vk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ launchParams: window.location.search })
+      })
+      return res.ok ? 'vk' : null
+    } catch {
+      return null
+    }
+  }
+
   return null
 }
 
@@ -79,6 +92,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       webApp?.requestFullscreen?.()
     } catch {
       // older clients without this method -- expand() above already covers them
+    }
+
+    // VK Mini Apps show their own loading spinner over the page until the
+    // app explicitly reports it's ready via VKWebAppInit -- without this
+    // call the app never becomes visible inside VK at all.
+    if (detectPlatform() === 'vk') {
+      window.vkBridge?.send('VKWebAppInit').catch(() => {})
     }
 
     async function init() {

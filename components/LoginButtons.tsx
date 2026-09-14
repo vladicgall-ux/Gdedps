@@ -4,7 +4,22 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RotateCw, Copy, Check } from 'lucide-react'
 import { useAuth } from './AuthProvider'
-import { TelegramIcon } from './icons/BrandIcons'
+import { TelegramIcon, VkIcon } from './icons/BrandIcons'
+import { detectPlatform } from '@/lib/platform'
+
+function randomString(len: number) {
+  const bytes = new Uint8Array(len)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function sha256Base64Url(input: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+}
 
 export function LoginButtons() {
   const { refresh } = useAuth()
@@ -73,6 +88,65 @@ export function LoginButtons() {
     }
   }
 
+  async function loginWithVk() {
+    setError(null)
+
+    // Inside VK (Mini App / community app webview) VK Bridge already knows
+    // who the user is -- ask it directly instead of the OAuth redirect,
+    // which needs a Redirect URI configured on VK's side that this app
+    // doesn't have. This also works even if the URL lost its vk_* params
+    // (e.g. after client-side navigation).
+    if (window.vkBridge && detectPlatform() === 'vk') {
+      setBusy('vk')
+      try {
+        const raw = (await window.vkBridge.send('VKWebAppGetLaunchParams')) as Record<string, unknown>
+        const search = Object.entries(raw)
+          .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
+          .join('&')
+        const res = await fetch('/api/auth/vk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ launchParams: search })
+        })
+        if (!res.ok) throw new Error()
+        await refresh()
+        router.push('/')
+      } catch {
+        setError('Не удалось войти через VK Bridge. Откройте приложение через VK, а не в браузере.')
+      } finally {
+        setBusy(null)
+      }
+      return
+    }
+
+    // Outside VK (regular browser) -- fall back to VK ID OAuth (PKCE).
+    const appId = process.env.NEXT_PUBLIC_VK_APP_ID
+    if (!appId) {
+      setError('VK не настроен')
+      return
+    }
+    const codeVerifier = randomString(32)
+    const state = randomString(16)
+    const deviceId = randomString(16)
+    sessionStorage.setItem('vk_code_verifier', codeVerifier)
+    sessionStorage.setItem('vk_device_id', deviceId)
+    sessionStorage.setItem('vk_state', state)
+
+    const codeChallenge = await sha256Base64Url(codeVerifier)
+    const redirectUri = `${window.location.origin}/login/vk-callback`
+
+    const url = new URL('https://id.vk.com/authorize')
+    url.searchParams.set('response_type', 'code')
+    url.searchParams.set('client_id', appId)
+    url.searchParams.set('redirect_uri', redirectUri)
+    url.searchParams.set('code_challenge', codeChallenge)
+    url.searchParams.set('code_challenge_method', 's256')
+    url.searchParams.set('state', state)
+    url.searchParams.set('scope', 'phone')
+
+    window.location.href = url.toString()
+  }
+
   function loginWithMax() {
     setError('Вход через MAX доступен внутри приложения MAX. Откройте бота «Где ДПС?» в MAX.')
   }
@@ -125,6 +199,14 @@ export function LoginButtons() {
           </button>
         </div>
       )}
+
+      <button
+        onClick={loginWithVk}
+        disabled={busy === 'vk'}
+        className="w-full flex items-center justify-center gap-2 rounded-full bg-[#0077FF] text-white font-medium py-3 disabled:opacity-60"
+      >
+        <VkIcon size={18} /> Войти через VK
+      </button>
 
       <button
         onClick={loginWithMax}
