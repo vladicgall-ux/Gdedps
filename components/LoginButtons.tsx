@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MessageCircle, Phone, Send, RotateCw } from 'lucide-react'
+import { RotateCw } from 'lucide-react'
 import { useAuth } from './AuthProvider'
+import { TelegramIcon, VkIcon, MaxIcon } from './icons/BrandIcons'
 
 function randomString(len: number) {
   const bytes = new Uint8Array(len)
@@ -114,7 +115,7 @@ export function LoginButtons() {
           disabled={busy === 'telegram'}
           className="w-full flex items-center justify-center gap-2 rounded-full bg-[#26A5E4] text-white font-medium py-3 disabled:opacity-60"
         >
-          <Send size={18} /> Войти через Telegram
+          <TelegramIcon size={18} /> Войти через Telegram
         </button>
       )}
 
@@ -151,7 +152,7 @@ export function LoginButtons() {
         disabled={busy === 'vk'}
         className="w-full flex items-center justify-center gap-2 rounded-full bg-[#0077FF] text-white font-medium py-3 disabled:opacity-60"
       >
-        <MessageCircle size={18} /> Войти через VK
+        <VkIcon size={18} /> Войти через VK
       </button>
 
       <button
@@ -159,7 +160,7 @@ export function LoginButtons() {
         disabled={busy === 'max'}
         className="w-full flex items-center justify-center gap-2 rounded-full bg-slate-800 text-white font-medium py-3 disabled:opacity-60"
       >
-        <Phone size={18} /> Войти через MAX
+        <MaxIcon size={18} /> Войти через MAX
       </button>
 
       {error && <p className="text-sm text-red-500 text-center">{error}</p>}
