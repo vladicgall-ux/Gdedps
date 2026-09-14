@@ -20,8 +20,10 @@ const config: Config = {
         }
       },
       spacing: {
-        'safe-top': 'env(safe-area-inset-top)',
-        'safe-bottom': 'env(safe-area-inset-bottom)',
+        // See --app-safe-top/bottom in globals.css -- these fold in
+        // Telegram Mini App's own fullscreen safe-area variables too.
+        'safe-top': 'var(--app-safe-top)',
+        'safe-bottom': 'var(--app-safe-bottom)',
         'safe-left': 'env(safe-area-inset-left)',
         'safe-right': 'env(safe-area-inset-right)'
       }

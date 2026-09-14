@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
-import { Crosshair, Siren, LogIn, ShieldCheck } from 'lucide-react'
+import { Crosshair, Siren, LogIn, ShieldCheck, Plus, Minus, X, Check } from 'lucide-react'
 import type { DpsMarker } from '@/lib/types'
 import { createDpsIcon, createUserDotIcon } from './dpsIcon'
 import { MarkerModal } from './MarkerModal'
@@ -22,6 +22,7 @@ export default function MapView() {
   const [userPos, setUserPos] = useState<[number, number] | null>(null)
   const [selected, setSelected] = useState<DpsMarker | null>(null)
   const [adding, setAdding] = useState(false)
+  const [picking, setPicking] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   const showToast = (msg: string) => {
@@ -84,7 +85,7 @@ export default function MapView() {
       zoom: 12,
       zoomControl: false,
       // Managed manually below so it doesn't share the bottom-right corner
-      // with the zoom control (which needs room to be bigger / sit higher).
+      // with our own controls.
       attributionControl: false
     })
 
@@ -94,8 +95,6 @@ export default function MapView() {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map)
-
-    L.control.zoom({ position: 'bottomright' }).addTo(map)
 
     mapRef.current = map
     fetchMarkers()
@@ -139,24 +138,31 @@ export default function MapView() {
     }
   }
 
-  async function addDpsMarker() {
+  function startPicking() {
     if (!user) {
       showToast('Войдите, чтобы добавить метку')
       return
     }
-    if (!userPos) {
-      showToast('Нет данных о вашем местоположении')
-      return
+    if (userPos && mapRef.current) {
+      mapRef.current.setView(userPos, 17)
     }
+    setPicking(true)
+  }
+
+  async function confirmPickedLocation() {
+    const map = mapRef.current
+    if (!map) return
+    const center = map.getCenter()
     setAdding(true)
     try {
       const res = await fetch('/api/markers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: userPos[0], lng: userPos[1] })
+        body: JSON.stringify({ lat: center.lat, lng: center.lng })
       })
       if (!res.ok) throw new Error()
       showToast('Метка добавлена')
+      setPicking(false)
       fetchMarkers()
     } catch {
       showToast('Не удалось добавить метку')
@@ -183,48 +189,97 @@ export default function MapView() {
     <div className="relative h-[100dvh] w-full">
       <div id="map-root" ref={mapElRef} className="h-full w-full" />
 
+      {picking && (
+        <div className="absolute inset-0 z-[400] flex items-center justify-center pointer-events-none">
+          <div className="-translate-y-1/2 flex flex-col items-center">
+            <img src="/dps-marker.png" alt="" className="w-11 h-11 drop-shadow-lg" />
+            <div className="w-1.5 h-1.5 rounded-full bg-black/40 -mt-1" />
+          </div>
+        </div>
+      )}
+
       <header className="absolute top-0 inset-x-0 z-[500] flex items-center justify-between px-4 pt-safe-top pt-3 pb-2 pointer-events-none">
         <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur px-3 py-1.5 shadow">
           <Siren size={18} className="text-brand-600" />
           <span className="font-semibold text-sm">Где ДПС?</span>
         </div>
-        <div className="pointer-events-auto flex items-center gap-2">
-          {user?.role === 'admin' && (
-            <Link
-              href="/admin"
-              className="flex items-center gap-1 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur px-3 py-1.5 shadow text-xs font-medium"
-            >
-              <ShieldCheck size={16} /> Админ
-            </Link>
-          )}
-          {!user && (
-            <Link
-              href="/login"
-              className="flex items-center gap-1 rounded-full bg-brand-600 text-white px-3 py-1.5 shadow text-xs font-medium"
-            >
-              <LogIn size={16} /> Войти
-            </Link>
-          )}
-        </div>
+        {!picking && (
+          <div className="pointer-events-auto flex items-center gap-2">
+            {user?.role === 'admin' && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur px-3 py-1.5 shadow text-xs font-medium"
+              >
+                <ShieldCheck size={16} /> Админ
+              </Link>
+            )}
+            {!user && (
+              <Link
+                href="/login"
+                className="flex items-center gap-1 rounded-full bg-brand-600 text-white px-3 py-1.5 shadow text-xs font-medium"
+              >
+                <LogIn size={16} /> Войти
+              </Link>
+            )}
+          </div>
+        )}
       </header>
 
-      <button
-        onClick={centerOnUser}
-        className="absolute right-3 z-[500] bottom-[calc(env(safe-area-inset-bottom)+192px)] rounded-full bg-white dark:bg-slate-900 shadow-lg p-4"
-        aria-label="Моё местоположение"
-      >
-        <Crosshair size={26} />
-      </button>
-
-      <div className="absolute inset-x-0 bottom-0 z-[500] px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-6 pointer-events-none bg-gradient-to-t from-white/90 dark:from-slate-950/90 to-transparent">
+      <div className="absolute right-3 z-[500] flex flex-col items-center gap-3 bottom-[calc(var(--app-safe-bottom)+104px)]">
+        <div className="flex flex-col rounded-2xl bg-white dark:bg-slate-900 shadow-lg overflow-hidden">
+          <button
+            onClick={() => mapRef.current?.zoomIn()}
+            className="w-12 h-12 flex items-center justify-center active:bg-slate-100 dark:active:bg-slate-800"
+            aria-label="Приблизить"
+          >
+            <Plus size={22} />
+          </button>
+          <div className="h-px bg-slate-200 dark:bg-slate-700" />
+          <button
+            onClick={() => mapRef.current?.zoomOut()}
+            className="w-12 h-12 flex items-center justify-center active:bg-slate-100 dark:active:bg-slate-800"
+            aria-label="Отдалить"
+          >
+            <Minus size={22} />
+          </button>
+        </div>
         <button
-          onClick={addDpsMarker}
-          disabled={adding}
-          className="pointer-events-auto w-full flex items-center justify-center gap-2 rounded-full bg-red-600 text-white font-semibold py-3.5 shadow-lg active:scale-[0.98] transition disabled:opacity-60"
+          onClick={centerOnUser}
+          className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 shadow-lg flex items-center justify-center"
+          aria-label="Моё местоположение"
         >
-          <Siren size={20} />
-          {adding ? 'Добавляем...' : 'Добавить метку ДПС'}
+          <Crosshair size={22} />
         </button>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 z-[500] px-4 pb-[calc(var(--app-safe-bottom)+16px)] pt-6 pointer-events-none bg-gradient-to-t from-white/90 dark:from-slate-950/90 to-transparent">
+        {picking ? (
+          <div className="pointer-events-auto flex gap-2">
+            <button
+              onClick={() => setPicking(false)}
+              disabled={adding}
+              className="flex items-center justify-center gap-2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold py-3.5 px-5 shadow-lg active:scale-[0.98] transition disabled:opacity-60"
+            >
+              <X size={20} /> Отмена
+            </button>
+            <button
+              onClick={confirmPickedLocation}
+              disabled={adding}
+              className="flex-1 flex items-center justify-center gap-2 rounded-full bg-red-600 text-white font-semibold py-3.5 shadow-lg active:scale-[0.98] transition disabled:opacity-60"
+            >
+              <Check size={20} />
+              {adding ? 'Добавляем...' : 'Поставить метку здесь'}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={startPicking}
+            className="pointer-events-auto w-full flex items-center justify-center gap-2 rounded-full bg-red-600 text-white font-semibold py-3.5 shadow-lg active:scale-[0.98] transition"
+          >
+            <Siren size={20} />
+            Добавить метку ДПС
+          </button>
+        )}
       </div>
 
       {toast && (
