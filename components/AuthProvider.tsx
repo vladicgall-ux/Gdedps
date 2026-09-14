@@ -81,7 +81,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    window.Telegram?.WebApp?.ready?.()
+    const webApp = window.Telegram?.WebApp
+    webApp?.ready?.()
+    // Mini Apps open "half-screen" (compact) by default -- expand to full
+    // height, and use the newer edge-to-edge fullscreen API where the
+    // client supports it (Bot API 8.0+, silently ignored otherwise).
+    webApp?.expand?.()
+    webApp?.disableVerticalSwipes?.()
+    try {
+      webApp?.requestFullscreen?.()
+    } catch {
+      // older clients without this method -- expand() above already covers them
+    }
 
     async function init() {
       const existing = await refresh()

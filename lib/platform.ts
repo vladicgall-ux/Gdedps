@@ -4,7 +4,16 @@ export type RuntimePlatform = 'telegram' | 'vk' | 'max' | 'web'
 
 declare global {
   interface Window {
-    Telegram?: { WebApp?: { initData?: string; ready?: () => void; expand?: () => void } }
+    Telegram?: {
+      WebApp?: {
+        initData?: string
+        ready?: () => void
+        expand?: () => void
+        isExpanded?: boolean
+        requestFullscreen?: () => void
+        disableVerticalSwipes?: () => void
+      }
+    }
   }
 }
 
