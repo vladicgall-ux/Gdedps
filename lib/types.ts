@@ -1,4 +1,4 @@
-export type Platform = 'telegram' | 'vk' | 'max' | 'web'
+export type Platform = 'telegram' | 'max' | 'web'
 export type Role = 'user' | 'admin'
 export type MarkerKind = 'dps' | 'gas'
 

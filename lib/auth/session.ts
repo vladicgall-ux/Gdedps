@@ -26,7 +26,7 @@ export async function createSessionCookie(payload: SessionPayload) {
     httpOnly: true,
     // sameSite: 'none' requires secure: true or browsers silently drop the
     // cookie -- so the two are tied together, not set independently. 'none'
-    // is required in production so the cookie survives inside the TG/VK/MAX
+    // is required in production so the cookie survives inside the TG/MAX
     // webview iframes (cross-site context); locally over plain http we fall
     // back to 'lax', which is the only mode a non-secure cookie can use.
     secure: isProd,

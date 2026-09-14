@@ -1,6 +1,6 @@
 'use client'
 
-export type RuntimePlatform = 'telegram' | 'vk' | 'max' | 'web'
+export type RuntimePlatform = 'telegram' | 'max' | 'web'
 
 declare global {
   interface Window {
@@ -15,9 +15,6 @@ declare global {
         requestContact?: (callback: (shared: boolean) => void) => void
       }
     }
-    vkBridge?: {
-      send: (method: string, params?: Record<string, unknown>) => Promise<unknown>
-    }
   }
 }
 
@@ -29,11 +26,9 @@ export function detectPlatform(): RuntimePlatform {
   if (window.Telegram?.WebApp?.initData) return 'telegram'
 
   const params = new URLSearchParams(window.location.search)
-  if (params.has('vk_user_id') || params.has('vk_app_id')) return 'vk'
   if (params.has('max_user_id') || params.get('platform') === 'max') return 'max'
 
   const ua = navigator.userAgent.toLowerCase()
-  if (ua.includes('vk_bridge') || ua.includes('vkclient')) return 'vk'
   if (ua.includes('maxmessenger') || ua.includes('max_app')) return 'max'
 
   return 'web'

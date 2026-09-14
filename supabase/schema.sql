@@ -11,8 +11,8 @@ create extension if not exists postgis;
 -- ---------------------------------------------------------------------------
 create table if not exists public.app_users (
   id uuid primary key default gen_random_uuid(),
-  platform text not null check (platform in ('telegram', 'vk', 'max', 'web')),
-  platform_id text not null,                 -- telegram user id / vk id / max id
+  platform text not null check (platform in ('telegram', 'max', 'web')),
+  platform_id text not null,                 -- telegram user id / max id
   display_name text,
   avatar_url text,
   phone text,

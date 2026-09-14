@@ -16,7 +16,6 @@ interface Stats {
 
 const platformLabels: Record<string, string> = {
   telegram: 'Telegram',
-  vk: 'VK',
   max: 'MAX',
   web: 'Веб'
 }

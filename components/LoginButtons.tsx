@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RotateCw, Copy, Check } from 'lucide-react'
 import { useAuth } from './AuthProvider'
-import { TelegramIcon, VkIcon } from './icons/BrandIcons'
-import { detectPlatform } from '@/lib/platform'
+import { TelegramIcon } from './icons/BrandIcons'
 
 export function LoginButtons() {
   const { refresh } = useAuth()
@@ -74,42 +73,6 @@ export function LoginButtons() {
     }
   }
 
-  async function loginWithVk() {
-    setError(null)
-
-    // Inside VK (Mini App / community app webview) VK Bridge already knows
-    // who the user is -- ask it directly instead of the OAuth redirect,
-    // which needs a Redirect URI configured on VK's side that this app
-    // doesn't have. This also works even if the URL lost its vk_* params
-    // (e.g. after client-side navigation).
-    if (window.vkBridge && detectPlatform() === 'vk') {
-      setBusy('vk')
-      try {
-        const raw = (await window.vkBridge.send('VKWebAppGetLaunchParams')) as Record<string, unknown>
-        const search = Object.entries(raw)
-          .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
-          .join('&')
-        const res = await fetch('/api/auth/vk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ launchParams: search })
-        })
-        if (!res.ok) throw new Error()
-        await refresh()
-        router.push('/')
-      } catch {
-        setError('Не удалось войти через VK Bridge. Откройте приложение через VK, а не в браузере.')
-      } finally {
-        setBusy(null)
-      }
-      return
-    }
-
-    setError(
-      'Вход через VK доступен только внутри приложения VK (мини-приложение или сообщество). Откройте «Где ДПС?» через VK.'
-    )
-  }
-
   function loginWithMax() {
     setError('Вход через MAX доступен внутри приложения MAX. Откройте бота «Где ДПС?» в MAX.')
   }
@@ -162,14 +125,6 @@ export function LoginButtons() {
           </button>
         </div>
       )}
-
-      <button
-        onClick={loginWithVk}
-        disabled={busy === 'vk'}
-        className="w-full flex items-center justify-center gap-2 rounded-full bg-[#0077FF] text-white font-medium py-3 disabled:opacity-60"
-      >
-        <VkIcon size={18} /> Войти через VK
-      </button>
 
       <button
         onClick={loginWithMax}
