@@ -15,7 +15,11 @@ function VkCallbackInner() {
       const code = params.get('code')
       const state = params.get('state')
       const codeVerifier = sessionStorage.getItem('vk_code_verifier')
-      const deviceId = sessionStorage.getItem('vk_device_id')
+      // VK issues its own device_id during the /authorize step and appends
+      // it to this redirect -- it must be echoed back as-is, not the
+      // client-generated one from sessionStorage (VK rejects that as
+      // "device_id is invalid").
+      const deviceId = params.get('device_id') ?? sessionStorage.getItem('vk_device_id')
       const savedState = sessionStorage.getItem('vk_state')
 
       if (!code || !codeVerifier || !deviceId || state !== savedState) {
