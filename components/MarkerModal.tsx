@@ -121,16 +121,16 @@ export function MarkerModal({
     <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
       <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white dark:bg-slate-900 shadow-xl max-h-[85vh] flex flex-col pb-safe-bottom">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
-          <h2 className="text-lg font-semibold">{marker.kind === 'gas' ? 'Заправка' : 'Пост ДПС'}</h2>
+          <h2 className="text-lg font-semibold">
+            {marker.source === 'osm' && marker.note ? marker.note : marker.kind === 'gas' ? 'Заправка' : 'Пост ДПС'}
+          </h2>
           <button onClick={onClose} className="p-2 -mr-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
             <X size={20} />
           </button>
         </div>
 
         <div className="px-4 py-3 space-y-2 border-b border-slate-200 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300">
-          {marker.source === 'osm' ? (
-            marker.note && <p className="font-medium text-slate-900 dark:text-slate-100">{marker.note}</p>
-          ) : (
+          {marker.source !== 'osm' && (
             <p>
               Добавил: <span className="font-medium text-slate-900 dark:text-slate-100">{marker.author_name ?? 'Аноним'}</span>{' '}
               · {timeAgo(marker.created_at)}
