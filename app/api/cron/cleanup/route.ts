@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
 // Called by Vercel Cron (see vercel.json) every 15 minutes. Deletes markers
-// whose 2-hour window (or latest confirmation) has expired. The map already
+// whose 3-hour window (or latest confirmation) has expired. The map already
 // filters expired markers client-side, so this just keeps the table tidy.
 //
 // Security: CRON_SECRET is mandatory. Without it configured, this endpoint

@@ -36,8 +36,8 @@ create table if not exists public.dps_markers (
   note text,
   created_at timestamptz not null default now(),
   -- Marker is auto-removed once now() > expires_at. Every confirmation
-  -- ("still here") pushes this 2 hours into the future.
-  expires_at timestamptz not null default (now() + interval '2 hours'),
+  -- ("still here") pushes this 3 hours into the future.
+  expires_at timestamptz not null default (now() + interval '3 hours'),
   confirmations_count integer not null default 0
 );
 

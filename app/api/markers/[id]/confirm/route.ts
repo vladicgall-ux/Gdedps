@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { rateLimit } from '@/lib/rateLimit'
 
-// POST: "still here" confirmation -- pushes expires_at 2 hours into the future.
+// POST: "still here" confirmation -- pushes expires_at 3 hours into the future.
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'auth_required' }, { status: 401 })
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
   if (!marker) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
-  const newExpiry = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+  const newExpiry = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
   const { data, error } = await db
     .from('dps_markers')
     .update({ expires_at: newExpiry, confirmations_count: marker.confirmations_count + 1 })
