@@ -47,9 +47,7 @@ export async function POST(req: NextRequest) {
     appId
   })
   if (!vkResult.ok) {
-    // Temporary: surface VK's own error text to the client while debugging
-    // the integration -- not sensitive, just VK's public OAuth error codes.
-    return NextResponse.json({ error: 'vk_id_exchange_failed', detail: vkResult.error }, { status: 401 })
+    return NextResponse.json({ error: 'vk_id_exchange_failed' }, { status: 401 })
   }
   const vkUser = vkResult
 
