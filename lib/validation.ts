@@ -59,3 +59,9 @@ export const markerCreateSchema = z.object({
 export const commentCreateSchema = z.object({
   body: z.string().trim().min(1).max(500)
 })
+
+// --- Admin payloads --------------------------------------------------------
+
+export const adminRoleUpdateSchema = z.object({
+  role: z.enum(['user', 'admin'])
+})

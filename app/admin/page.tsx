@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Users, Activity, MapPin, Trash2 } from 'lucide-react'
+import { ArrowLeft, Users, Activity, MapPin, Trash2, ShieldCheck, ShieldOff } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
-import type { DpsMarker } from '@/lib/types'
+import type { DpsMarker, AppUser } from '@/lib/types'
 
 interface Stats {
   totalUsers: number
@@ -24,7 +24,9 @@ export default function AdminPage() {
   const { user, loading } = useAuth()
   const [stats, setStats] = useState<Stats | null>(null)
   const [markers, setMarkers] = useState<DpsMarker[]>([])
+  const [users, setUsers] = useState<AppUser[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [busyUserId, setBusyUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (loading || !user) return
@@ -33,11 +35,19 @@ export default function AdminPage() {
       return
     }
     async function load() {
-      const [statsRes, markersRes] = await Promise.all([fetch('/api/admin/stats'), fetch('/api/markers')])
+      const [statsRes, markersRes, usersRes] = await Promise.all([
+        fetch('/api/admin/stats'),
+        fetch('/api/markers'),
+        fetch('/api/admin/users')
+      ])
       if (statsRes.ok) setStats(await statsRes.json())
       if (markersRes.ok) {
         const json = await markersRes.json()
         setMarkers(json.markers ?? [])
+      }
+      if (usersRes.ok) {
+        const json = await usersRes.json()
+        setUsers(json.users ?? [])
       }
     }
     load()
@@ -47,6 +57,32 @@ export default function AdminPage() {
     if (!confirm('Удалить метку?')) return
     const res = await fetch(`/api/markers/${id}`, { method: 'DELETE' })
     if (res.ok) setMarkers((prev) => prev.filter((m) => m.id !== id))
+  }
+
+  async function toggleRole(target: AppUser) {
+    const nextRole = target.role === 'admin' ? 'user' : 'admin'
+    if (target.role === 'admin' && target.id === user?.id) {
+      alert('Нельзя снять права администратора с самого себя')
+      return
+    }
+    if (!confirm(nextRole === 'admin' ? `Сделать «${target.display_name ?? 'без имени'}» админом?` : `Убрать права админа у «${target.display_name ?? 'без имени'}»?`)) {
+      return
+    }
+    setBusyUserId(target.id)
+    try {
+      const res = await fetch(`/api/admin/users/${target.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: nextRole })
+      })
+      if (!res.ok) throw new Error()
+      const json = await res.json()
+      setUsers((prev) => prev.map((u) => (u.id === target.id ? json.user : u)))
+    } catch {
+      alert('Не удалось изменить роль')
+    } finally {
+      setBusyUserId(null)
+    }
   }
 
   if (loading) return <div className="p-6 text-slate-400">Загрузка...</div>
@@ -93,6 +129,53 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        <div>
+          <h2 className="font-semibold mb-2">Пользователи ({users.length})</h2>
+          <div className="space-y-2">
+            {users.length === 0 && <p className="text-sm text-slate-400">Пока никто не заходил</p>}
+            {users.map((u) => (
+              <div
+                key={u.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate flex items-center gap-1.5">
+                    {u.display_name ?? 'Без имени'}
+                    {u.role === 'admin' && (
+                      <span className="text-[10px] uppercase tracking-wide bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200 rounded-full px-1.5 py-0.5">
+                        Админ
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {platformLabels[u.platform] ?? u.platform}
+                    {u.phone ? ` · ${u.phone}` : ''} · был(а) {new Date(u.last_seen_at).toLocaleString('ru-RU')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => toggleRole(u)}
+                  disabled={busyUserId === u.id}
+                  className={`shrink-0 flex items-center gap-1 rounded-full text-xs font-medium px-3 py-2 disabled:opacity-60 ${
+                    u.role === 'admin'
+                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100'
+                      : 'bg-brand-600 text-white'
+                  }`}
+                >
+                  {u.role === 'admin' ? (
+                    <>
+                      <ShieldOff size={14} /> Снять админа
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck size={14} /> Сделать админом
+                    </>
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div>
           <h2 className="font-semibold mb-2">Активные метки ({markers.length})</h2>
