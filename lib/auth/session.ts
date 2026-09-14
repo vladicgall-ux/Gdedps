@@ -20,10 +20,17 @@ export async function createSessionCookie(payload: SessionPayload) {
     .setExpirationTime(`${MAX_AGE_SECONDS}s`)
     .sign(secretKey())
 
+  const isProd = process.env.NODE_ENV === 'production'
+
   cookies().set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'none', // required so the session cookie survives inside TG/VK/MAX webviews
+    // sameSite: 'none' requires secure: true or browsers silently drop the
+    // cookie -- so the two are tied together, not set independently. 'none'
+    // is required in production so the cookie survives inside the TG/VK/MAX
+    // webview iframes (cross-site context); locally over plain http we fall
+    // back to 'lax', which is the only mode a non-secure cookie can use.
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     path: '/',
     maxAge: MAX_AGE_SECONDS
   })

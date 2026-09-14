@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
+import { rateLimit } from '@/lib/rateLimit'
+import { markerCreateSchema } from '@/lib/validation'
 
 // GET: all currently-active markers (not yet expired), with their comments.
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, { key: 'markers:list', limit: 60, windowMs: 60_000 })
+  if (limited) return limited
+
   const db = supabaseAdmin()
   const nowIso = new Date().toISOString()
 
@@ -61,19 +66,19 @@ export async function POST(req: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'auth_required' }, { status: 401 })
 
-  const body = await req.json()
-  const lat = Number(body.lat)
-  const lng = Number(body.lng)
-  const note = typeof body.note === 'string' ? body.note.slice(0, 500) : null
+  const limited = rateLimit(req, { key: `markers:create:${session.sub}`, limit: 10, windowMs: 60_000 })
+  if (limited) return limited
 
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
-    return NextResponse.json({ error: 'invalid_coordinates' }, { status: 400 })
+  const parsed = markerCreateSchema.safeParse(await req.json())
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'invalid_payload' }, { status: 400 })
   }
+  const { lat, lng, note } = parsed.data
 
   const db = supabaseAdmin()
   const { data, error } = await db
     .from('dps_markers')
-    .insert({ author_id: session.sub, lat, lng, note })
+    .insert({ author_id: session.sub, lat, lng, note: note ?? null })
     .select('*')
     .single()
 

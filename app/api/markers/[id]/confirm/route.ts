@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
+import { rateLimit } from '@/lib/rateLimit'
 
 // POST: "still here" confirmation -- pushes expires_at 2 hours into the future.
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'auth_required' }, { status: 401 })
+
+  const limited = rateLimit(req, { key: `markers:confirm:${session.sub}`, limit: 20, windowMs: 60_000 })
+  if (limited) return limited
 
   const db = supabaseAdmin()
   const { data: marker, error: fetchError } = await db
