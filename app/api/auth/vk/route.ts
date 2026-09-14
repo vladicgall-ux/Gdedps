@@ -43,8 +43,8 @@ export async function POST(req: NextRequest) {
     codeVerifier: body.codeVerifier,
     deviceId: body.deviceId,
     redirectUri: body.redirectUri,
-    appId,
-    appSecret
+    state: body.state,
+    appId
   })
   if (!vkUser) return NextResponse.json({ error: 'vk_id_exchange_failed' }, { status: 401 })
 

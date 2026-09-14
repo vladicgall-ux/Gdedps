@@ -31,6 +31,7 @@ function VkCallbackInner() {
             code,
             codeVerifier,
             deviceId,
+            state,
             redirectUri: `${window.location.origin}/login/vk-callback`
           })
         })

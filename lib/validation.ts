@@ -28,6 +28,7 @@ export const vkAuthSchema = z.union([
     code: z.string().min(1).max(1024),
     codeVerifier: z.string().min(1).max(256),
     deviceId: z.string().min(1).max(256),
+    state: z.string().min(1).max(256),
     redirectUri: z.string().url()
   })
 ])

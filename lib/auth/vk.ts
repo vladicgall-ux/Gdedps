@@ -46,9 +46,13 @@ export async function exchangeVkIdCode(params: {
   codeVerifier: string
   deviceId: string
   redirectUri: string
+  state: string
   appId: string
-  appSecret: string
 }): Promise<{ id: string; firstName?: string; lastName?: string; avatarUrl?: string; phone?: string } | null> {
+  // VK ID's OAuth 2.1 + PKCE flow authenticates the token exchange with
+  // code_verifier, not a client_secret -- a secret would defeat the point of
+  // PKCE for a public client. `state` must also be echoed back here (not
+  // just checked client-side) or VK rejects the exchange.
   const tokenResp = await fetch('https://id.vk.com/oauth2/auth', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -58,14 +62,20 @@ export async function exchangeVkIdCode(params: {
       code_verifier: params.codeVerifier,
       device_id: params.deviceId,
       redirect_uri: params.redirectUri,
-      client_id: params.appId,
-      client_secret: params.appSecret
+      state: params.state,
+      client_id: params.appId
     })
   })
 
-  if (!tokenResp.ok) return null
+  if (!tokenResp.ok) {
+    console.error('VK ID token exchange failed', tokenResp.status, await tokenResp.text())
+    return null
+  }
   const tokenJson = (await tokenResp.json()) as { access_token?: string; user_id?: number }
-  if (!tokenJson.access_token || !tokenJson.user_id) return null
+  if (!tokenJson.access_token || !tokenJson.user_id) {
+    console.error('VK ID token exchange returned no access_token/user_id', tokenJson)
+    return null
+  }
 
   const infoResp = await fetch('https://id.vk.com/oauth2/user_info', {
     method: 'POST',
