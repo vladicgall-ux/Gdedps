@@ -48,6 +48,9 @@ export default function MapView() {
   const [adding, setAdding] = useState(false)
   const [picking, setPicking] = useState(false)
   const [noteInput, setNoteInput] = useState('')
+  const [price92Input, setPrice92Input] = useState('')
+  const [price95Input, setPrice95Input] = useState('')
+  const [priceDtInput, setPriceDtInput] = useState('')
   const [toast, setToast] = useState<string | null>(null)
 
   const config = MODE_CONFIG[mode]
@@ -183,6 +186,9 @@ export default function MapView() {
     setPicking(false)
     setSelected(null)
     setNoteInput('')
+    setPrice92Input('')
+    setPrice95Input('')
+    setPriceDtInput('')
     setMode(next)
   }
 
@@ -195,6 +201,9 @@ export default function MapView() {
       mapRef.current.setView(userPos, 17)
     }
     setNoteInput('')
+    setPrice92Input('')
+    setPrice95Input('')
+    setPriceDtInput('')
     setPicking(true)
   }
 
@@ -203,17 +212,36 @@ export default function MapView() {
     if (!map) return
     const center = map.getCenter()
     const note = noteInput.trim()
+    const toNumber = (s: string) => {
+      const n = Number(s.replace(',', '.'))
+      return s.trim() && Number.isFinite(n) ? n : undefined
+    }
     setAdding(true)
     try {
       const res = await fetch('/api/markers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: center.lat, lng: center.lng, kind: mode, note: note || undefined })
+        body: JSON.stringify({
+          lat: center.lat,
+          lng: center.lng,
+          kind: mode,
+          note: note || undefined,
+          ...(mode === 'gas'
+            ? {
+                price92: toNumber(price92Input),
+                price95: toNumber(price95Input),
+                priceDt: toNumber(priceDtInput)
+              }
+            : {})
+        })
       })
       if (!res.ok) throw new Error()
       showToast('Метка добавлена')
       setPicking(false)
       setNoteInput('')
+      setPrice92Input('')
+      setPrice95Input('')
+      setPriceDtInput('')
       fetchMarkers(mode)
     } catch {
       showToast('Не удалось добавить метку')
@@ -327,6 +355,34 @@ export default function MapView() {
       <div className="absolute inset-x-0 bottom-0 z-[500] px-4 pb-[calc(var(--app-safe-bottom)+16px)] pt-6 pointer-events-none bg-gradient-to-t from-white/90 dark:from-slate-950/90 to-transparent">
         {picking ? (
           <div className="pointer-events-auto space-y-2">
+            {mode === 'gas' && (
+              <div className="flex gap-2">
+                <input
+                  value={price92Input}
+                  onChange={(e) => setPrice92Input(e.target.value)}
+                  placeholder="АИ-92"
+                  inputMode="decimal"
+                  maxLength={6}
+                  className="w-1/3 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-center shadow focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <input
+                  value={price95Input}
+                  onChange={(e) => setPrice95Input(e.target.value)}
+                  placeholder="АИ-95"
+                  inputMode="decimal"
+                  maxLength={6}
+                  className="w-1/3 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-center shadow focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <input
+                  value={priceDtInput}
+                  onChange={(e) => setPriceDtInput(e.target.value)}
+                  placeholder="ДТ"
+                  inputMode="decimal"
+                  maxLength={6}
+                  className="w-1/3 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-center shadow focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            )}
             <input
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}

@@ -37,6 +37,11 @@ create table if not exists public.dps_markers (
   lat double precision not null,
   lng double precision not null,
   note text,
+  -- Crowdsourced fuel prices for kind='gas' -- no external price feed, users
+  -- fill these in when creating/confirming the marker.
+  price_92 numeric(6,2),
+  price_95 numeric(6,2),
+  price_dt numeric(6,2),
   created_at timestamptz not null default now(),
   -- Marker is auto-removed once now() > expires_at. Every confirmation
   -- ("still here") pushes this 3 hours into the future.

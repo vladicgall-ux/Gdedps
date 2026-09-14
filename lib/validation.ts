@@ -35,14 +35,27 @@ export const telegramLoginCodeSchema = z.object({
 
 // --- Marker payloads -----------------------------------------------------
 
+const gasPrice = z.number().gte(0).lte(500).optional().nullable()
+
 export const markerCreateSchema = z.object({
   lat: z.number().gte(-90).lte(90),
   lng: z.number().gte(-180).lte(180),
   kind: z.enum(['dps', 'gas']).default('dps'),
-  note: z.string().trim().max(500).optional().nullable()
+  note: z.string().trim().max(500).optional().nullable(),
+  price92: gasPrice,
+  price95: gasPrice,
+  priceDt: gasPrice
 })
 
 export const markerKindQuerySchema = z.enum(['dps', 'gas']).default('dps')
+
+export const markerConfirmSchema = z
+  .object({
+    price92: gasPrice,
+    price95: gasPrice,
+    priceDt: gasPrice
+  })
+  .partial()
 
 export const commentCreateSchema = z.object({
   body: z.string().trim().min(1).max(500)

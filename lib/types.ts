@@ -21,6 +21,9 @@ export interface DpsMarker {
   lat: number
   lng: number
   note: string | null
+  price92: number | null
+  price95: number | null
+  priceDt: number | null
   created_at: string
   expires_at: string
   confirmations_count: number

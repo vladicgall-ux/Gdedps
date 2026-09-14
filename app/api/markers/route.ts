@@ -60,6 +60,9 @@ export async function GET(req: NextRequest) {
     lat: m.lat,
     lng: m.lng,
     note: m.note,
+    price92: m.price_92,
+    price95: m.price_95,
+    priceDt: m.price_dt,
     created_at: m.created_at,
     expires_at: m.expires_at,
     confirmations_count: m.confirmations_count,
@@ -83,12 +86,21 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'invalid_payload' }, { status: 400 })
   }
-  const { lat, lng, kind, note } = parsed.data
+  const { lat, lng, kind, note, price92, price95, priceDt } = parsed.data
 
   const db = supabaseAdmin()
   const { data, error } = await db
     .from('dps_markers')
-    .insert({ author_id: session.sub, kind, lat, lng, note: note ?? null })
+    .insert({
+      author_id: session.sub,
+      kind,
+      lat,
+      lng,
+      note: note ?? null,
+      price_92: price92 ?? null,
+      price_95: price95 ?? null,
+      price_dt: priceDt ?? null
+    })
     .select('*')
     .single()
 

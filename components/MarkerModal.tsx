@@ -35,6 +35,9 @@ export function MarkerModal({
   const [comment, setComment] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [price92Input, setPrice92Input] = useState(marker.price92?.toString() ?? '')
+  const [price95Input, setPrice95Input] = useState(marker.price95?.toString() ?? '')
+  const [priceDtInput, setPriceDtInput] = useState(marker.priceDt?.toString() ?? '')
 
   async function submitComment() {
     if (!comment.trim()) return
@@ -66,13 +69,32 @@ export function MarkerModal({
       setError('Войдите, чтобы подтвердить')
       return
     }
+    const toNumber = (s: string) => {
+      const n = Number(s.replace(',', '.'))
+      return s.trim() && Number.isFinite(n) ? n : undefined
+    }
     setBusy(true)
     setError(null)
     try {
-      const res = await fetch(`/api/markers/${marker.id}/confirm`, { method: 'POST' })
+      const res = await fetch(`/api/markers/${marker.id}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          marker.kind === 'gas'
+            ? { price92: toNumber(price92Input), price95: toNumber(price95Input), priceDt: toNumber(priceDtInput) }
+            : {}
+        )
+      })
       if (!res.ok) throw new Error()
       const json = await res.json()
-      onChanged({ ...marker, expires_at: json.marker.expires_at, confirmations_count: json.marker.confirmations_count })
+      onChanged({
+        ...marker,
+        expires_at: json.marker.expires_at,
+        confirmations_count: json.marker.confirmations_count,
+        price92: json.marker.price92 ?? marker.price92,
+        price95: json.marker.price95 ?? marker.price95,
+        priceDt: json.marker.priceDt ?? marker.priceDt
+      })
     } catch {
       setError('Не удалось подтвердить')
     } finally {
@@ -116,6 +138,29 @@ export function MarkerModal({
           </p>
         </div>
 
+        {marker.kind === 'gas' && (marker.price92 || marker.price95 || marker.priceDt) && (
+          <div className="flex gap-2 px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+            {marker.price92 && (
+              <div className="flex-1 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-center py-2">
+                <p className="text-xs text-slate-500">АИ-92</p>
+                <p className="font-semibold">{marker.price92} ₽</p>
+              </div>
+            )}
+            {marker.price95 && (
+              <div className="flex-1 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-center py-2">
+                <p className="text-xs text-slate-500">АИ-95</p>
+                <p className="font-semibold">{marker.price95} ₽</p>
+              </div>
+            )}
+            {marker.priceDt && (
+              <div className="flex-1 rounded-xl bg-amber-50 dark:bg-amber-950 text-center py-2">
+                <p className="text-xs text-slate-500">ДТ</p>
+                <p className="font-semibold">{marker.priceDt} ₽</p>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           {(marker.comments ?? []).length === 0 && (
             <p className="text-sm text-slate-400 text-center py-6">Пока нет комментариев</p>
@@ -132,6 +177,34 @@ export function MarkerModal({
         {error && <p className="px-4 text-sm text-red-500">{error}</p>}
 
         <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+          {marker.kind === 'gas' && (
+            <div className="flex gap-2">
+              <input
+                value={price92Input}
+                onChange={(e) => setPrice92Input(e.target.value)}
+                placeholder="АИ-92"
+                inputMode="decimal"
+                maxLength={6}
+                className="w-1/3 rounded-full border border-slate-300 dark:border-slate-700 bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <input
+                value={price95Input}
+                onChange={(e) => setPrice95Input(e.target.value)}
+                placeholder="АИ-95"
+                inputMode="decimal"
+                maxLength={6}
+                className="w-1/3 rounded-full border border-slate-300 dark:border-slate-700 bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <input
+                value={priceDtInput}
+                onChange={(e) => setPriceDtInput(e.target.value)}
+                placeholder="ДТ"
+                inputMode="decimal"
+                maxLength={6}
+                className="w-1/3 rounded-full border border-slate-300 dark:border-slate-700 bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          )}
           <div className="flex gap-2">
             <input
               value={comment}
