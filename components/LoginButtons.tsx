@@ -2,14 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MessageCircle, Send, Phone } from 'lucide-react'
+import { MessageCircle, Phone, Send, RotateCw } from 'lucide-react'
 import { useAuth } from './AuthProvider'
-
-declare global {
-  interface Window {
-    onTelegramAuth?: (user: Record<string, string | number>) => void
-  }
-}
 
 function randomString(len: number) {
   const bytes = new Uint8Array(len)
@@ -28,45 +22,57 @@ async function sha256Base64Url(input: string) {
 export function LoginButtons() {
   const { refresh } = useAuth()
   const router = useRouter()
-  const telegramContainer = useRef<HTMLDivElement | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Telegram Login Widget
-  useEffect(() => {
-    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME
-    if (!botUsername || !telegramContainer.current) return
+  const [tgCode, setTgCode] = useState<string | null>(null)
+  const [tgBotUsername, setTgBotUsername] = useState<string | null>(null)
+  const [tgStatus, setTgStatus] = useState<'idle' | 'waiting' | 'expired'>('idle')
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-    window.onTelegramAuth = async (user) => {
-      setBusy('telegram')
-      setError(null)
-      try {
-        const res = await fetch('/api/auth/telegram', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(user)
-        })
-        if (!res.ok) throw new Error()
-        await refresh()
-        router.push('/')
-      } catch {
-        setError('Не удалось войти через Telegram')
-      } finally {
-        setBusy(null)
-      }
+  useEffect(() => () => stopPolling(), [])
+
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
     }
+  }
 
-    const script = document.createElement('script')
-    script.src = 'https://telegram.org/js/telegram-widget.js?22'
-    script.async = true
-    script.setAttribute('data-telegram-login', botUsername)
-    script.setAttribute('data-size', 'large')
-    script.setAttribute('data-radius', '999')
-    script.setAttribute('data-onauth', 'onTelegramAuth(user)')
-    script.setAttribute('data-request-access', 'write')
-    telegramContainer.current.innerHTML = ''
-    telegramContainer.current.appendChild(script)
-  }, [refresh, router])
+  async function startTelegramCodeLogin() {
+    setError(null)
+    setBusy('telegram')
+    stopPolling()
+    try {
+      const res = await fetch('/api/auth/telegram/code', { method: 'POST' })
+      if (!res.ok) throw new Error()
+      const json = await res.json()
+      setTgCode(json.code)
+      setTgBotUsername(json.botUsername)
+      setTgStatus('waiting')
+
+      pollRef.current = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`/api/auth/telegram/code/status?code=${json.code}`, { cache: 'no-store' })
+          const statusJson = await statusRes.json()
+          if (statusJson.status === 'ok') {
+            stopPolling()
+            await refresh()
+            router.push('/')
+          } else if (statusJson.status === 'expired') {
+            stopPolling()
+            setTgStatus('expired')
+          }
+        } catch {
+          // transient network hiccup -- next poll will retry
+        }
+      }, 2000)
+    } catch {
+      setError('Не удалось создать код входа')
+    } finally {
+      setBusy(null)
+    }
+  }
 
   async function loginWithVk() {
     const appId = process.env.NEXT_PUBLIC_VK_APP_ID
@@ -102,7 +108,43 @@ export function LoginButtons() {
 
   return (
     <div className="space-y-3">
-      <div ref={telegramContainer} className="flex justify-center min-h-[40px]" />
+      {tgStatus === 'idle' && (
+        <button
+          onClick={startTelegramCodeLogin}
+          disabled={busy === 'telegram'}
+          className="w-full flex items-center justify-center gap-2 rounded-full bg-[#26A5E4] text-white font-medium py-3 disabled:opacity-60"
+        >
+          <Send size={18} /> Войти через Telegram
+        </button>
+      )}
+
+      {tgStatus === 'waiting' && tgCode && (
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 text-center space-y-3">
+          <p className="text-sm text-slate-600 dark:text-slate-300">Отправьте этот код боту в Telegram</p>
+          <p className="text-3xl font-bold tracking-[0.2em]">{tgCode}</p>
+          <a
+            href={`https://t.me/${tgBotUsername}?start=${tgCode}`}
+            target="_blank"
+            rel="noreferrer"
+            className="block w-full rounded-full bg-[#26A5E4] text-white font-medium py-3"
+          >
+            Открыть бота и отправить код
+          </a>
+          <p className="text-xs text-slate-400">Код действует 5 минут. Страница обновится сама после подтверждения.</p>
+        </div>
+      )}
+
+      {tgStatus === 'expired' && (
+        <div className="rounded-2xl border border-red-200 dark:border-red-900 p-4 text-center space-y-2">
+          <p className="text-sm text-red-500">Код истёк или уже использован</p>
+          <button
+            onClick={startTelegramCodeLogin}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-600"
+          >
+            <RotateCw size={14} /> Получить новый код
+          </button>
+        </div>
+      )}
 
       <button
         onClick={loginWithVk}
@@ -119,15 +161,6 @@ export function LoginButtons() {
       >
         <Phone size={18} /> Войти через MAX
       </button>
-
-      {!process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME && (
-        <button
-          disabled
-          className="w-full flex items-center justify-center gap-2 rounded-full bg-[#26A5E4] text-white font-medium py-3 opacity-50"
-        >
-          <Send size={18} /> Telegram (настройте бота)
-        </button>
-      )}
 
       {error && <p className="text-sm text-red-500 text-center">{error}</p>}
     </div>

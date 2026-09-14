@@ -44,6 +44,10 @@ export const maxAuthSchema = z
   })
   .passthrough()
 
+export const telegramLoginCodeSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, 'must be a 6-digit code')
+})
+
 // --- Marker payloads -----------------------------------------------------
 
 export const markerCreateSchema = z.object({
