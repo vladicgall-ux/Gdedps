@@ -83,17 +83,17 @@ export default function MapView() {
       center: DEFAULT_CENTER,
       zoom: 12,
       zoomControl: false,
-      attributionControl: true
+      // Managed manually below so it doesn't share the bottom-right corner
+      // with the zoom control (which needs room to be bigger / sit higher).
+      attributionControl: false
     })
+
+    L.control.attribution({ position: 'bottomleft', prefix: false }).addTo(map)
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map)
-
-    // Drop Leaflet's own "Leaflet 🇺🇦" branding prefix, keep only the
-    // legally-required OpenStreetMap attribution added above.
-    map.attributionControl.setPrefix(false)
 
     L.control.zoom({ position: 'bottomright' }).addTo(map)
 
@@ -210,10 +210,10 @@ export default function MapView() {
 
       <button
         onClick={centerOnUser}
-        className="absolute right-3 z-[500] bottom-[calc(env(safe-area-inset-bottom)+92px)] rounded-full bg-white dark:bg-slate-900 shadow p-3"
+        className="absolute right-3 z-[500] bottom-[calc(env(safe-area-inset-bottom)+192px)] rounded-full bg-white dark:bg-slate-900 shadow-lg p-4"
         aria-label="Моё местоположение"
       >
-        <Crosshair size={20} />
+        <Crosshair size={26} />
       </button>
 
       <div className="absolute inset-x-0 bottom-0 z-[500] px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-6 pointer-events-none bg-gradient-to-t from-white/90 dark:from-slate-950/90 to-transparent">

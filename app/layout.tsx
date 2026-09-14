@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import Script from 'next/script'
 import './globals.css'
 import { AuthProvider } from '@/components/AuthProvider'
 
@@ -28,6 +29,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru" suppressHydrationWarning>
       <body>
+        {/* Required for window.Telegram.WebApp (and initData) to exist at all
+            when the page is opened inside a Telegram Mini App -- without this
+            script Telegram never injects the object, so auto-login never runs. */}
+        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

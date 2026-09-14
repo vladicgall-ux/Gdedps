@@ -43,3 +43,21 @@ body {
   border: 3px solid white;
   box-shadow: 0 0 0 3px rgb(37 99 235 / 0.35);
 }
+
+/* Bigger +/- zoom buttons, lifted clear of the bottom action bar. */
+.leaflet-bottom.leaflet-right {
+  margin-bottom: calc(env(safe-area-inset-bottom) + 192px);
+  margin-right: 12px;
+}
+
+.leaflet-control-zoom {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.leaflet-control-zoom a {
+  width: 44px !important;
+  height: 44px !important;
+  line-height: 44px !important;
+  font-size: 22px !important;
+}
