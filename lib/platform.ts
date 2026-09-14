@@ -12,6 +12,7 @@ declare global {
         isExpanded?: boolean
         requestFullscreen?: () => void
         disableVerticalSwipes?: () => void
+        requestContact?: (callback: (shared: boolean) => void) => void
       }
     }
   }

@@ -25,21 +25,21 @@ const AuthContext = createContext<AuthContextValue>({
   logout: async () => {}
 })
 
-async function tryAutoLogin(): Promise<boolean> {
+async function tryAutoLogin(): Promise<Platform | null> {
   const platform = detectPlatform()
 
   if (platform === 'telegram') {
     const initData = window.Telegram?.WebApp?.initData
-    if (!initData) return false
+    if (!initData) return null
     try {
       const res = await fetch('/api/auth/telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initData })
       })
-      return res.ok
+      return res.ok ? 'telegram' : null
     } catch {
-      return false
+      return null
     }
   }
 
@@ -50,13 +50,31 @@ async function tryAutoLogin(): Promise<boolean> {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ launchParams: window.location.search })
       })
-      return res.ok
+      return res.ok ? 'vk' : null
     } catch {
-      return false
+      return null
     }
   }
 
-  return false
+  return null
+}
+
+const PHONE_REQUEST_FLAG = 'gdedps_phone_requested'
+
+// Asks Telegram's native "share phone number" popup once per device. The
+// number itself never reaches this browser -- Telegram delivers it to the
+// bot as a regular contact message, which app/api/telegram/webhook handles.
+function requestTelegramPhoneOnce() {
+  if (typeof window === 'undefined') return
+  if (localStorage.getItem(PHONE_REQUEST_FLAG)) return
+  const webApp = window.Telegram?.WebApp
+  if (!webApp?.requestContact) return
+
+  localStorage.setItem(PHONE_REQUEST_FLAG, '1')
+  webApp.requestContact(() => {
+    // Nothing to do here either way -- the webhook updates the profile
+    // once Telegram delivers the contact message, if the user accepted.
+  })
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -96,11 +114,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function init() {
       const existing = await refresh()
-      if (existing || autoLoginAttempted.current) return
+      if (existing) {
+        if (existing.platform === 'telegram') requestTelegramPhoneOnce()
+        return
+      }
+      if (autoLoginAttempted.current) return
       autoLoginAttempted.current = true
 
-      const loggedIn = await tryAutoLogin()
-      if (loggedIn) await refresh()
+      const loggedInAs = await tryAutoLogin()
+      if (loggedInAs) {
+        await refresh()
+        if (loggedInAs === 'telegram') requestTelegramPhoneOnce()
+      }
     }
 
     init()
