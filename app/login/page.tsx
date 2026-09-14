@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Siren } from 'lucide-react'
 import { LoginButtons } from '@/components/LoginButtons'
 import { useAuth } from '@/components/AuthProvider'
 
@@ -23,9 +22,8 @@ export default function LoginPage() {
   return (
     <div className="h-[100dvh] flex flex-col items-center justify-center px-6 pb-safe-bottom">
       <div className="mb-8 flex flex-col items-center gap-3">
-        <div className="rounded-full bg-brand-600 text-white p-4">
-          <Siren size={32} />
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/dps-marker.png" alt="Где ДПС?" className="w-20 h-20 drop-shadow-lg" />
         <h1 className="text-2xl font-bold">Где ДПС?</h1>
         <p className="text-slate-500 text-center max-w-xs">
           Войдите, чтобы отмечать посты ДПС и видеть карту в реальном времени

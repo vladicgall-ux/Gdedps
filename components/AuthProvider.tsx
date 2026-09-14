@@ -59,24 +59,6 @@ async function tryAutoLogin(): Promise<Platform | null> {
   return null
 }
 
-const PHONE_REQUEST_FLAG = 'gdedps_phone_requested'
-
-// Asks Telegram's native "share phone number" popup once per device. The
-// number itself never reaches this browser -- Telegram delivers it to the
-// bot as a regular contact message, which app/api/telegram/webhook handles.
-function requestTelegramPhoneOnce() {
-  if (typeof window === 'undefined') return
-  if (localStorage.getItem(PHONE_REQUEST_FLAG)) return
-  const webApp = window.Telegram?.WebApp
-  if (!webApp?.requestContact) return
-
-  localStorage.setItem(PHONE_REQUEST_FLAG, '1')
-  webApp.requestContact(() => {
-    // Nothing to do here either way -- the webhook updates the profile
-    // once Telegram delivers the contact message, if the user accepted.
-  })
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null)
   const [loading, setLoading] = useState(true)
@@ -114,18 +96,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function init() {
       const existing = await refresh()
-      if (existing) {
-        if (existing.platform === 'telegram') requestTelegramPhoneOnce()
-        return
-      }
+      if (existing) return
       if (autoLoginAttempted.current) return
       autoLoginAttempted.current = true
 
       const loggedInAs = await tryAutoLogin()
-      if (loggedInAs) {
-        await refresh()
-        if (loggedInAs === 'telegram') requestTelegramPhoneOnce()
-      }
+      if (loggedInAs) await refresh()
     }
 
     init()
