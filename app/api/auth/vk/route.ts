@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Path 2: VK ID web login (authorization code + PKCE)
-  const vkUser = await exchangeVkIdCode({
+  const vkResult = await exchangeVkIdCode({
     code: body.code,
     codeVerifier: body.codeVerifier,
     deviceId: body.deviceId,
@@ -46,7 +46,12 @@ export async function POST(req: NextRequest) {
     state: body.state,
     appId
   })
-  if (!vkUser) return NextResponse.json({ error: 'vk_id_exchange_failed' }, { status: 401 })
+  if (!vkResult.ok) {
+    // Temporary: surface VK's own error text to the client while debugging
+    // the integration -- not sensitive, just VK's public OAuth error codes.
+    return NextResponse.json({ error: 'vk_id_exchange_failed', detail: vkResult.error }, { status: 401 })
+  }
+  const vkUser = vkResult
 
   const user = await upsertUser({
     platform: 'vk',

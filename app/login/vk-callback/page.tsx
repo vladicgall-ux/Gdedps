@@ -35,11 +35,14 @@ function VkCallbackInner() {
             redirectUri: `${window.location.origin}/login/vk-callback`
           })
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}))
+          throw new Error(json.detail || json.error || 'unknown')
+        }
         await refresh()
         router.replace('/')
-      } catch {
-        setError('Не удалось завершить вход через VK')
+      } catch (e) {
+        setError(`Не удалось завершить вход через VK: ${e instanceof Error ? e.message : 'unknown'}`)
       }
     }
     run()

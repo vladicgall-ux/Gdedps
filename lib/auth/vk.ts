@@ -41,6 +41,10 @@ export function verifyVkLaunchParams(search: string, appSecret: string): VkLaunc
  * Exchanges a VK ID authorization code (PKCE flow, web login button) for a
  * user profile. See https://id.vk.com/about/business/go/docs/vkid/latest/vk-id/connection/api-integration/auth-flow
  */
+type VkExchangeResult =
+  | { ok: true; id: string; firstName?: string; lastName?: string; avatarUrl?: string; phone?: string }
+  | { ok: false; error: string }
+
 export async function exchangeVkIdCode(params: {
   code: string
   codeVerifier: string
@@ -48,7 +52,7 @@ export async function exchangeVkIdCode(params: {
   redirectUri: string
   state: string
   appId: string
-}): Promise<{ id: string; firstName?: string; lastName?: string; avatarUrl?: string; phone?: string } | null> {
+}): Promise<VkExchangeResult> {
   // VK ID's OAuth 2.1 + PKCE flow authenticates the token exchange with
   // code_verifier, not a client_secret -- a secret would defeat the point of
   // PKCE for a public client. `state` must also be echoed back here (not
@@ -68,13 +72,14 @@ export async function exchangeVkIdCode(params: {
   })
 
   if (!tokenResp.ok) {
-    console.error('VK ID token exchange failed', tokenResp.status, await tokenResp.text())
-    return null
+    const detail = await tokenResp.text()
+    console.error('VK ID token exchange failed', tokenResp.status, detail)
+    return { ok: false, error: `token_exchange_${tokenResp.status}: ${detail.slice(0, 300)}` }
   }
   const tokenJson = (await tokenResp.json()) as { access_token?: string; user_id?: number }
   if (!tokenJson.access_token || !tokenJson.user_id) {
     console.error('VK ID token exchange returned no access_token/user_id', tokenJson)
-    return null
+    return { ok: false, error: `token_exchange_missing_fields: ${JSON.stringify(tokenJson).slice(0, 300)}` }
   }
 
   const infoResp = await fetch('https://id.vk.com/oauth2/user_info', {
@@ -82,12 +87,17 @@ export async function exchangeVkIdCode(params: {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ access_token: tokenJson.access_token, client_id: params.appId })
   })
-  if (!infoResp.ok) return null
+  if (!infoResp.ok) {
+    const detail = await infoResp.text()
+    console.error('VK ID user_info failed', infoResp.status, detail)
+    return { ok: false, error: `user_info_${infoResp.status}: ${detail.slice(0, 300)}` }
+  }
   const info = (await infoResp.json()) as {
     user?: { first_name?: string; last_name?: string; avatar?: string; phone?: string }
   }
 
   return {
+    ok: true,
     id: String(tokenJson.user_id),
     firstName: info.user?.first_name,
     lastName: info.user?.last_name,
