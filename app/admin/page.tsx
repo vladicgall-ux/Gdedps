@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Users, Activity, MapPin, Trash2, ShieldCheck, ShieldOff } from 'lucide-react'
+import { ArrowLeft, Users, Activity, MapPin, Trash2, ShieldCheck, ShieldOff, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import type { DpsMarker, AppUser } from '@/lib/types'
 
@@ -130,8 +130,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        <div>
-          <h2 className="font-semibold mb-2">Пользователи ({users.length})</h2>
+        <Collapsible title={`Пользователи (${users.length})`} defaultOpen>
           <div className="space-y-2">
             {users.length === 0 && <p className="text-sm text-slate-400">Пока никто не заходил</p>}
             {users.map((u) => (
@@ -175,10 +174,9 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
-        </div>
+        </Collapsible>
 
-        <div>
-          <h2 className="font-semibold mb-2">Активные метки ({markers.length})</h2>
+        <Collapsible title={`Активные метки (${markers.length})`} defaultOpen>
           <div className="space-y-2">
             {markers.length === 0 && <p className="text-sm text-slate-400">Сейчас нет активных меток</p>}
             {markers.map((m) => (
@@ -201,7 +199,7 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
-        </div>
+        </Collapsible>
       </div>
     </div>
   )
@@ -213,6 +211,27 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
       <div className="flex items-center gap-2 text-brand-600 mb-1">{icon}</div>
       <p className="text-2xl font-bold">{value}</p>
       <p className="text-xs text-slate-500">{label}</p>
+    </div>
+  )
+}
+
+function Collapsible({
+  title,
+  defaultOpen = false,
+  children
+}: {
+  title: string
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div>
+      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between gap-2 mb-2">
+        <h2 className="font-semibold">{title}</h2>
+        <ChevronDown size={18} className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && children}
     </div>
   )
 }
