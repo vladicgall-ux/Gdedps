@@ -1,0 +1,135 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { ArrowLeft, Users, Activity, MapPin, Trash2 } from 'lucide-react'
+import { useAuth } from '@/components/AuthProvider'
+import type { DpsMarker } from '@/lib/types'
+
+interface Stats {
+  totalUsers: number
+  activeUsers24h: number
+  activeMarkers: number
+  byPlatform: Record<string, number>
+}
+
+const platformLabels: Record<string, string> = {
+  telegram: 'Telegram',
+  vk: 'VK',
+  max: 'MAX',
+  web: 'Веб'
+}
+
+export default function AdminPage() {
+  const { user, loading } = useAuth()
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [markers, setMarkers] = useState<DpsMarker[]>([])
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (loading || !user) return
+    if (user.role !== 'admin') {
+      setError('Доступ только для администраторов')
+      return
+    }
+    async function load() {
+      const [statsRes, markersRes] = await Promise.all([fetch('/api/admin/stats'), fetch('/api/markers')])
+      if (statsRes.ok) setStats(await statsRes.json())
+      if (markersRes.ok) {
+        const json = await markersRes.json()
+        setMarkers(json.markers ?? [])
+      }
+    }
+    load()
+  }, [loading, user])
+
+  async function deleteMarker(id: string) {
+    if (!confirm('Удалить метку?')) return
+    const res = await fetch(`/api/markers/${id}`, { method: 'DELETE' })
+    if (res.ok) setMarkers((prev) => prev.filter((m) => m.id !== id))
+  }
+
+  if (loading) return <div className="p-6 text-slate-400">Загрузка...</div>
+  if (error) {
+    return (
+      <div className="p-6">
+        <p className="text-red-500 mb-3">{error}</p>
+        <Link href="/" className="text-brand-600 underline">
+          На карту
+        </Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-[100dvh] pb-safe-bottom pt-safe-top">
+      <header className="flex items-center gap-3 px-4 py-4 border-b border-slate-200 dark:border-slate-800">
+        <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+          <ArrowLeft size={20} />
+        </Link>
+        <h1 className="text-lg font-semibold">Админ-панель</h1>
+      </header>
+
+      <div className="p-4 space-y-6 max-w-3xl mx-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <StatCard icon={<Users size={18} />} label="Всего пользователей" value={stats?.totalUsers ?? '—'} />
+          <StatCard icon={<Activity size={18} />} label="Активны за 24ч" value={stats?.activeUsers24h ?? '—'} />
+          <StatCard icon={<MapPin size={18} />} label="Активных меток" value={stats?.activeMarkers ?? '—'} />
+        </div>
+
+        {stats && (
+          <div>
+            <h2 className="font-semibold mb-2">По платформам</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {Object.entries(stats.byPlatform).map(([platform, count]) => (
+                <div
+                  key={platform}
+                  className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 text-center"
+                >
+                  <p className="text-2xl font-bold">{count}</p>
+                  <p className="text-xs text-slate-500">{platformLabels[platform] ?? platform}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <h2 className="font-semibold mb-2">Активные метки ({markers.length})</h2>
+          <div className="space-y-2">
+            {markers.length === 0 && <p className="text-sm text-slate-400">Сейчас нет активных меток</p>}
+            {markers.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{m.author_name ?? 'Аноним'}</p>
+                  <p className="text-xs text-slate-500">
+                    {m.lat.toFixed(4)}, {m.lng.toFixed(4)} · {new Date(m.created_at).toLocaleString('ru-RU')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => deleteMarker(m.id)}
+                  className="shrink-0 flex items-center gap-1 rounded-full bg-red-600 text-white text-xs font-medium px-3 py-2"
+                >
+                  <Trash2 size={14} /> Удалить
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) {
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+      <div className="flex items-center gap-2 text-brand-600 mb-1">{icon}</div>
+      <p className="text-2xl font-bold">{value}</p>
+      <p className="text-xs text-slate-500">{label}</p>
+    </div>
+  )
+}
