@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { RotateCw } from 'lucide-react'
+import { RotateCw, Copy, Check } from 'lucide-react'
 import { useAuth } from './AuthProvider'
 import { TelegramIcon, VkIcon, MaxIcon } from './icons/BrandIcons'
 
@@ -29,7 +29,19 @@ export function LoginButtons() {
   const [tgCode, setTgCode] = useState<string | null>(null)
   const [tgBotUsername, setTgBotUsername] = useState<string | null>(null)
   const [tgStatus, setTgStatus] = useState<'idle' | 'waiting' | 'expired'>('idle')
+  const [copied, setCopied] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  async function copyCode() {
+    if (!tgCode) return
+    try {
+      await navigator.clipboard.writeText(tgCode)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard API unavailable -- the code is already shown on screen
+    }
+  }
 
   useEffect(() => () => stopPolling(), [])
 
@@ -122,7 +134,16 @@ export function LoginButtons() {
       {tgStatus === 'waiting' && tgCode && (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 text-center space-y-3">
           <p className="text-sm text-slate-600 dark:text-slate-300">Отправьте этот код боту в Telegram</p>
-          <p className="text-3xl font-bold tracking-[0.2em]">{tgCode}</p>
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-3xl font-bold tracking-[0.2em]">{tgCode}</p>
+            <button
+              onClick={copyCode}
+              aria-label="Скопировать код"
+              className="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              {copied ? <Check size={20} className="text-emerald-600" /> : <Copy size={20} />}
+            </button>
+          </div>
           <a
             href={`https://t.me/${tgBotUsername}?start=${tgCode}`}
             target="_blank"
