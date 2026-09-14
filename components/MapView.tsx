@@ -91,6 +91,10 @@ export default function MapView() {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map)
 
+    // Drop Leaflet's own "Leaflet 🇺🇦" branding prefix, keep only the
+    // legally-required OpenStreetMap attribution added above.
+    map.attributionControl.setPrefix(false)
+
     L.control.zoom({ position: 'bottomright' }).addTo(map)
 
     mapRef.current = map
