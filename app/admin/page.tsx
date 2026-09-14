@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Users, Activity, MapPin, Trash2, ShieldCheck, ShieldOff, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Users, Activity, MapPin, Fuel, Trash2, ShieldCheck, ShieldOff, ChevronDown } from 'lucide-react'
 import { useAuth } from '@/components/AuthProvider'
 import type { DpsMarker, AppUser } from '@/lib/types'
 
 interface Stats {
   totalUsers: number
   activeUsers24h: number
-  activeMarkers: number
+  activeDpsMarkers: number
+  activeGasMarkers: number
   byPlatform: Record<string, number>
 }
 
@@ -23,7 +24,8 @@ const platformLabels: Record<string, string> = {
 export default function AdminPage() {
   const { user, loading } = useAuth()
   const [stats, setStats] = useState<Stats | null>(null)
-  const [markers, setMarkers] = useState<DpsMarker[]>([])
+  const [dpsMarkers, setDpsMarkers] = useState<DpsMarker[]>([])
+  const [gasMarkers, setGasMarkers] = useState<DpsMarker[]>([])
   const [users, setUsers] = useState<AppUser[]>([])
   const [error, setError] = useState<string | null>(null)
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
@@ -35,28 +37,26 @@ export default function AdminPage() {
       return
     }
     async function load() {
-      const [statsRes, markersRes, usersRes] = await Promise.all([
+      const [statsRes, dpsRes, gasRes, usersRes] = await Promise.all([
         fetch('/api/admin/stats'),
-        fetch('/api/markers'),
+        fetch('/api/markers?kind=dps'),
+        fetch('/api/markers?kind=gas'),
         fetch('/api/admin/users')
       ])
       if (statsRes.ok) setStats(await statsRes.json())
-      if (markersRes.ok) {
-        const json = await markersRes.json()
-        setMarkers(json.markers ?? [])
-      }
-      if (usersRes.ok) {
-        const json = await usersRes.json()
-        setUsers(json.users ?? [])
-      }
+      if (dpsRes.ok) setDpsMarkers((await dpsRes.json()).markers ?? [])
+      if (gasRes.ok) setGasMarkers((await gasRes.json()).markers ?? [])
+      if (usersRes.ok) setUsers((await usersRes.json()).users ?? [])
     }
     load()
   }, [loading, user])
 
-  async function deleteMarker(id: string) {
+  async function deleteMarker(id: string, kind: 'dps' | 'gas') {
     if (!confirm('Удалить метку?')) return
     const res = await fetch(`/api/markers/${id}`, { method: 'DELETE' })
-    if (res.ok) setMarkers((prev) => prev.filter((m) => m.id !== id))
+    if (!res.ok) return
+    const setter = kind === 'dps' ? setDpsMarkers : setGasMarkers
+    setter((prev) => prev.filter((m) => m.id !== id))
   }
 
   async function toggleRole(target: AppUser) {
@@ -65,7 +65,13 @@ export default function AdminPage() {
       alert('Нельзя снять права администратора с самого себя')
       return
     }
-    if (!confirm(nextRole === 'admin' ? `Сделать «${target.display_name ?? 'без имени'}» админом?` : `Убрать права админа у «${target.display_name ?? 'без имени'}»?`)) {
+    if (
+      !confirm(
+        nextRole === 'admin'
+          ? `Сделать «${target.display_name ?? 'без имени'}» админом?`
+          : `Убрать права админа у «${target.display_name ?? 'без имени'}»?`
+      )
+    ) {
       return
     }
     setBusyUserId(target.id)
@@ -107,10 +113,11 @@ export default function AdminPage() {
       </header>
 
       <div className="p-4 space-y-6 max-w-3xl mx-auto">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard icon={<Users size={18} />} label="Всего пользователей" value={stats?.totalUsers ?? '—'} />
           <StatCard icon={<Activity size={18} />} label="Активны за 24ч" value={stats?.activeUsers24h ?? '—'} />
-          <StatCard icon={<MapPin size={18} />} label="Активных меток" value={stats?.activeMarkers ?? '—'} />
+          <StatCard icon={<MapPin size={18} />} label="Активных меток ДПС" value={stats?.activeDpsMarkers ?? '—'} />
+          <StatCard icon={<Fuel size={18} />} label="Активных заправок" value={stats?.activeGasMarkers ?? '—'} />
         </div>
 
         {stats && (
@@ -176,31 +183,49 @@ export default function AdminPage() {
           </div>
         </Collapsible>
 
-        <Collapsible title={`Активные метки (${markers.length})`} defaultOpen>
-          <div className="space-y-2">
-            {markers.length === 0 && <p className="text-sm text-slate-400">Сейчас нет активных меток</p>}
-            {markers.map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 p-3"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{m.author_name ?? 'Аноним'}</p>
-                  <p className="text-xs text-slate-500">
-                    {m.lat.toFixed(4)}, {m.lng.toFixed(4)} · {new Date(m.created_at).toLocaleString('ru-RU')}
-                  </p>
-                </div>
-                <button
-                  onClick={() => deleteMarker(m.id)}
-                  className="shrink-0 flex items-center gap-1 rounded-full bg-red-600 text-white text-xs font-medium px-3 py-2"
-                >
-                  <Trash2 size={14} /> Удалить
-                </button>
-              </div>
-            ))}
-          </div>
+        <Collapsible title={`Активные метки ДПС (${dpsMarkers.length})`} defaultOpen>
+          <MarkerList markers={dpsMarkers} onDelete={(id) => deleteMarker(id, 'dps')} emptyText="Сейчас нет активных меток" />
+        </Collapsible>
+
+        <Collapsible title={`Активные заправки (${gasMarkers.length})`} defaultOpen>
+          <MarkerList markers={gasMarkers} onDelete={(id) => deleteMarker(id, 'gas')} emptyText="Сейчас нет отмеченных заправок" />
         </Collapsible>
       </div>
+    </div>
+  )
+}
+
+function MarkerList({
+  markers,
+  onDelete,
+  emptyText
+}: {
+  markers: DpsMarker[]
+  onDelete: (id: string) => void
+  emptyText: string
+}) {
+  return (
+    <div className="space-y-2">
+      {markers.length === 0 && <p className="text-sm text-slate-400">{emptyText}</p>}
+      {markers.map((m) => (
+        <div
+          key={m.id}
+          className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 p-3"
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">{m.author_name ?? 'Аноним'}</p>
+            <p className="text-xs text-slate-500">
+              {m.lat.toFixed(4)}, {m.lng.toFixed(4)} · {new Date(m.created_at).toLocaleString('ru-RU')}
+            </p>
+          </div>
+          <button
+            onClick={() => onDelete(m.id)}
+            className="shrink-0 flex items-center gap-1 rounded-full bg-red-600 text-white text-xs font-medium px-3 py-2"
+          >
+            <Trash2 size={14} /> Удалить
+          </button>
+        </div>
+      ))}
     </div>
   )
 }

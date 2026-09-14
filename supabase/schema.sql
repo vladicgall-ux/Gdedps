@@ -26,11 +26,14 @@ create index if not exists app_users_role_idx on public.app_users (role);
 create index if not exists app_users_last_seen_idx on public.app_users (last_seen_at);
 
 -- ---------------------------------------------------------------------------
--- DPS markers
+-- Map markers -- shared table for both "Где ДПС?" (kind='dps') and
+-- "Где бензин?" (kind='gas') pins. Same lifecycle for both: expires after
+-- 3h, extended by confirmations, comments/RLS/cleanup all shared.
 -- ---------------------------------------------------------------------------
 create table if not exists public.dps_markers (
   id uuid primary key default gen_random_uuid(),
   author_id uuid references public.app_users (id) on delete set null,
+  kind text not null default 'dps' check (kind in ('dps', 'gas')),
   lat double precision not null,
   lng double precision not null,
   note text,
@@ -43,6 +46,7 @@ create table if not exists public.dps_markers (
 
 create index if not exists dps_markers_expires_idx on public.dps_markers (expires_at);
 create index if not exists dps_markers_location_idx on public.dps_markers (lat, lng);
+create index if not exists dps_markers_kind_idx on public.dps_markers (kind);
 
 -- ---------------------------------------------------------------------------
 -- Comments on a marker

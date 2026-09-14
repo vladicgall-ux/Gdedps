@@ -2,14 +2,37 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
-import { Crosshair, Siren, LogIn, ShieldCheck, Plus, Minus, X, Check } from 'lucide-react'
-import type { DpsMarker } from '@/lib/types'
+import { Crosshair, Siren, Fuel, LogIn, ShieldCheck, Plus, Minus, X, Check } from 'lucide-react'
+import type { DpsMarker, MarkerKind } from '@/lib/types'
 import { createDpsIcon, createUserDotIcon } from './dpsIcon'
+import { createGasIcon } from './gasIcon'
 import { MarkerModal } from './MarkerModal'
 import { useAuth } from './AuthProvider'
 import Link from 'next/link'
 
 const DEFAULT_CENTER: [number, number] = [55.751244, 37.618423] // Moscow, fallback
+
+const MODE_CONFIG: Record<
+  MarkerKind,
+  { label: string; addButton: string; notePlaceholder: string; pinIcon: string; buttonClass: string; markerIcon: () => L.Icon | L.DivIcon }
+> = {
+  dps: {
+    label: 'Где ДПС?',
+    addButton: 'Добавить метку ДПС',
+    notePlaceholder: 'Комментарий (необязательно): пост слева, у поворота...',
+    pinIcon: '/dps-marker.png',
+    buttonClass: 'bg-red-600',
+    markerIcon: createDpsIcon
+  },
+  gas: {
+    label: 'Где бензин?',
+    addButton: 'Отметить заправку',
+    notePlaceholder: 'Комментарий (необязательно): есть 95-й, без очереди...',
+    pinIcon: '',
+    buttonClass: 'bg-emerald-600',
+    markerIcon: createGasIcon
+  }
+}
 
 export default function MapView() {
   const { user } = useAuth()
@@ -19,12 +42,15 @@ export default function MapView() {
   const markerLayerRef = useRef<Map<string, L.Marker>>(new Map())
   const markersDataRef = useRef<Map<string, DpsMarker>>(new Map())
 
+  const [mode, setMode] = useState<MarkerKind>('dps')
   const [userPos, setUserPos] = useState<[number, number] | null>(null)
   const [selected, setSelected] = useState<DpsMarker | null>(null)
   const [adding, setAdding] = useState(false)
   const [picking, setPicking] = useState(false)
   const [noteInput, setNoteInput] = useState('')
   const [toast, setToast] = useState<string | null>(null)
+
+  const config = MODE_CONFIG[mode]
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -34,6 +60,12 @@ export default function MapView() {
   const openMarker = useCallback((id: string) => {
     const m = markersDataRef.current.get(id)
     if (m) setSelected(m)
+  }, [])
+
+  const clearMarkerLayer = useCallback(() => {
+    for (const marker of markerLayerRef.current.values()) marker.remove()
+    markerLayerRef.current.clear()
+    markersDataRef.current.clear()
   }, [])
 
   const renderMarkers = useCallback(
@@ -49,7 +81,7 @@ export default function MapView() {
         if (existing) {
           existing.setLatLng([m.lat, m.lng])
         } else {
-          const marker = L.marker([m.lat, m.lng], { icon: createDpsIcon() })
+          const marker = L.marker([m.lat, m.lng], { icon: MODE_CONFIG[m.kind].markerIcon() })
             .addTo(map)
             .on('click', () => openMarker(m.id))
           markerLayerRef.current.set(m.id, marker)
@@ -67,15 +99,16 @@ export default function MapView() {
     [openMarker]
   )
 
-  const fetchMarkers = useCallback(async () => {
+  const fetchMarkers = useCallback(async (kind: MarkerKind) => {
     try {
-      const res = await fetch('/api/markers', { cache: 'no-store' })
+      const res = await fetch(`/api/markers?kind=${kind}`, { cache: 'no-store' })
       const json = await res.json()
       renderMarkers(json.markers ?? [])
     } catch {
       // network hiccup -- next poll will retry
     }
-  }, [renderMarkers])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Init map once
   useEffect(() => {
@@ -98,16 +131,22 @@ export default function MapView() {
     }).addTo(map)
 
     mapRef.current = map
-    fetchMarkers()
-    const poll = setInterval(fetchMarkers, 20000)
 
     return () => {
-      clearInterval(poll)
       map.remove()
       mapRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Re-fetch (and swap markers) whenever the active mode changes, then poll.
+  useEffect(() => {
+    if (!mapRef.current) return
+    clearMarkerLayer()
+    fetchMarkers(mode)
+    const poll = setInterval(() => fetchMarkers(mode), 20000)
+    return () => clearInterval(poll)
+  }, [mode, fetchMarkers, clearMarkerLayer])
 
   // Geolocation
   useEffect(() => {
@@ -139,6 +178,14 @@ export default function MapView() {
     }
   }
 
+  function switchMode(next: MarkerKind) {
+    if (next === mode) return
+    setPicking(false)
+    setSelected(null)
+    setNoteInput('')
+    setMode(next)
+  }
+
   function startPicking() {
     if (!user) {
       showToast('Войдите, чтобы добавить метку')
@@ -161,13 +208,13 @@ export default function MapView() {
       const res = await fetch('/api/markers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: center.lat, lng: center.lng, note: note || undefined })
+        body: JSON.stringify({ lat: center.lat, lng: center.lng, kind: mode, note: note || undefined })
       })
       if (!res.ok) throw new Error()
       showToast('Метка добавлена')
       setPicking(false)
       setNoteInput('')
-      fetchMarkers()
+      fetchMarkers(mode)
     } catch {
       showToast('Не удалось добавить метку')
     } finally {
@@ -196,16 +243,37 @@ export default function MapView() {
       {picking && (
         <div className="absolute inset-0 z-[400] flex items-center justify-center pointer-events-none">
           <div className="-translate-y-1/2 flex flex-col items-center">
-            <img src="/dps-marker.png" alt="" className="w-11 h-11 drop-shadow-lg" />
+            {mode === 'dps' ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/dps-marker.png" alt="" className="w-11 h-11 drop-shadow-lg" />
+            ) : (
+              <div className="w-11 h-11 drop-shadow-lg rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center">
+                <Fuel size={22} className="text-white" />
+              </div>
+            )}
             <div className="w-1.5 h-1.5 rounded-full bg-black/40 -mt-1" />
           </div>
         </div>
       )}
 
       <header className="absolute top-0 inset-x-0 z-[500] flex items-center justify-between px-4 pt-safe-top pt-3 pb-2 pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur px-3 py-1.5 shadow">
-          <Siren size={18} className="text-brand-600" />
-          <span className="font-semibold text-sm">Где ДПС?</span>
+        <div className="pointer-events-auto flex items-center gap-0.5 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur p-1 shadow">
+          <button
+            onClick={() => switchMode('dps')}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition ${
+              mode === 'dps' ? 'bg-red-600 text-white' : 'text-slate-500'
+            }`}
+          >
+            <Siren size={16} /> ДПС
+          </button>
+          <button
+            onClick={() => switchMode('gas')}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition ${
+              mode === 'gas' ? 'bg-emerald-600 text-white' : 'text-slate-500'
+            }`}
+          >
+            <Fuel size={16} /> Бензин
+          </button>
         </div>
         {!picking && (
           <div className="pointer-events-auto flex items-center gap-2">
@@ -262,7 +330,7 @@ export default function MapView() {
             <input
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}
-              placeholder="Комментарий (необязательно): пост слева, у поворота..."
+              placeholder={config.notePlaceholder}
               maxLength={500}
               className="w-full rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm shadow focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
@@ -277,7 +345,7 @@ export default function MapView() {
               <button
                 onClick={confirmPickedLocation}
                 disabled={adding}
-                className="flex-1 flex items-center justify-center gap-2 rounded-full bg-red-600 text-white font-semibold py-3.5 shadow-lg active:scale-[0.98] transition disabled:opacity-60"
+                className={`flex-1 flex items-center justify-center gap-2 rounded-full text-white font-semibold py-3.5 shadow-lg active:scale-[0.98] transition disabled:opacity-60 ${config.buttonClass}`}
               >
                 <Check size={20} />
                 {adding ? 'Добавляем...' : 'Поставить метку здесь'}
@@ -287,10 +355,10 @@ export default function MapView() {
         ) : (
           <button
             onClick={startPicking}
-            className="pointer-events-auto w-full flex items-center justify-center gap-2 rounded-full bg-red-600 text-white font-semibold py-3.5 shadow-lg active:scale-[0.98] transition"
+            className={`pointer-events-auto w-full flex items-center justify-center gap-2 rounded-full text-white font-semibold py-3.5 shadow-lg active:scale-[0.98] transition ${config.buttonClass}`}
           >
-            <Siren size={20} />
-            Добавить метку ДПС
+            {mode === 'dps' ? <Siren size={20} /> : <Fuel size={20} />}
+            {config.addButton}
           </button>
         )}
       </div>

@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import { rateLimit } from '@/lib/rateLimit'
-import { markerCreateSchema } from '@/lib/validation'
+import { markerCreateSchema, markerKindQuerySchema } from '@/lib/validation'
 
-// GET: all currently-active markers (not yet expired), with their comments.
+// GET: all currently-active markers of one kind (not yet expired), with
+// their comments. ?kind=dps (default) or ?kind=gas.
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { key: 'markers:list', limit: 60, windowMs: 60_000 })
   if (limited) return limited
+
+  const kindParsed = markerKindQuerySchema.safeParse(req.nextUrl.searchParams.get('kind') ?? undefined)
+  if (!kindParsed.success) {
+    return NextResponse.json({ error: 'invalid_kind' }, { status: 400 })
+  }
+  const kind = kindParsed.data
 
   const db = supabaseAdmin()
   const nowIso = new Date().toISOString()
@@ -15,6 +22,7 @@ export async function GET(req: NextRequest) {
   const { data: markers, error } = await db
     .from('dps_markers')
     .select('*, app_users!dps_markers_author_id_fkey(display_name)')
+    .eq('kind', kind)
     .gt('expires_at', nowIso)
     .order('created_at', { ascending: false })
 
@@ -48,6 +56,7 @@ export async function GET(req: NextRequest) {
   const result = (markers ?? []).map((m) => ({
     id: m.id,
     author_id: m.author_id,
+    kind: m.kind,
     lat: m.lat,
     lng: m.lng,
     note: m.note,
@@ -61,7 +70,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ markers: result })
 }
 
-// POST: create a new marker at the caller's location. Requires auth.
+// POST: create a new marker (DPS post or gas station) at the caller's
+// location. Requires auth.
 export async function POST(req: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'auth_required' }, { status: 401 })
@@ -73,12 +83,12 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'invalid_payload' }, { status: 400 })
   }
-  const { lat, lng, note } = parsed.data
+  const { lat, lng, kind, note } = parsed.data
 
   const db = supabaseAdmin()
   const { data, error } = await db
     .from('dps_markers')
-    .insert({ author_id: session.sub, lat, lng, note: note ?? null })
+    .insert({ author_id: session.sub, kind, lat, lng, note: note ?? null })
     .select('*')
     .single()
 

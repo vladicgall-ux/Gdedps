@@ -53,8 +53,11 @@ export const telegramLoginCodeSchema = z.object({
 export const markerCreateSchema = z.object({
   lat: z.number().gte(-90).lte(90),
   lng: z.number().gte(-180).lte(180),
+  kind: z.enum(['dps', 'gas']).default('dps'),
   note: z.string().trim().max(500).optional().nullable()
 })
+
+export const markerKindQuerySchema = z.enum(['dps', 'gas']).default('dps')
 
 export const commentCreateSchema = z.object({
   body: z.string().trim().min(1).max(500)

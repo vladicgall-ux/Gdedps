@@ -1,5 +1,6 @@
 export type Platform = 'telegram' | 'vk' | 'max' | 'web'
 export type Role = 'user' | 'admin'
+export type MarkerKind = 'dps' | 'gas'
 
 export interface AppUser {
   id: string
@@ -16,6 +17,7 @@ export interface AppUser {
 export interface DpsMarker {
   id: string
   author_id: string | null
+  kind: MarkerKind
   lat: number
   lng: number
   note: string | null
