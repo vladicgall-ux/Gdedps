@@ -34,6 +34,10 @@ create table if not exists public.dps_markers (
   id uuid primary key default gen_random_uuid(),
   author_id uuid references public.app_users (id) on delete set null,
   kind text not null default 'dps' check (kind in ('dps', 'gas')),
+  -- 'user' -- placed by someone in the app, expires in 3h unless confirmed.
+  -- 'osm' -- permanent gas station seeded from OpenStreetMap open data
+  -- (expires_at set far in the future, never actually expires).
+  source text not null default 'user' check (source in ('user', 'osm')),
   lat double precision not null,
   lng double precision not null,
   note text,
@@ -50,6 +54,7 @@ create table if not exists public.dps_markers (
 );
 
 create index if not exists dps_markers_expires_idx on public.dps_markers (expires_at);
+create index if not exists dps_markers_source_idx on public.dps_markers (source);
 create index if not exists dps_markers_location_idx on public.dps_markers (lat, lng);
 create index if not exists dps_markers_kind_idx on public.dps_markers (kind);
 

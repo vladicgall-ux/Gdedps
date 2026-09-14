@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
     id: m.id,
     author_id: m.author_id,
     kind: m.kind,
+    source: m.source,
     lat: m.lat,
     lng: m.lng,
     note: m.note,

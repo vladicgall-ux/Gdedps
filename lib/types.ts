@@ -18,6 +18,10 @@ export interface DpsMarker {
   id: string
   author_id: string | null
   kind: MarkerKind
+  // 'user' -- a temporary report placed by someone in the app (expires in 3h
+  // unless confirmed). 'osm' -- a permanent gas station seeded from
+  // OpenStreetMap open data; it never expires, only its price/comments do.
+  source: 'user' | 'osm'
   lat: number
   lng: number
   note: string | null

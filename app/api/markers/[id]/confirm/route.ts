@@ -25,17 +25,20 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const db = supabaseAdmin()
   const { data: marker, error: fetchError } = await db
     .from('dps_markers')
-    .select('id, confirmations_count')
+    .select('id, source, confirmations_count')
     .eq('id', params.id)
     .maybeSingle()
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
   if (!marker) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
-  const newExpiry = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
   const update: Record<string, unknown> = {
-    expires_at: newExpiry,
     confirmations_count: marker.confirmations_count + 1
+  }
+  // Permanent stations seeded from OSM never expire -- confirming one is
+  // just a "still open" signal, not a lifecycle reset.
+  if (marker.source !== 'osm') {
+    update.expires_at = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString()
   }
   if (price92 !== undefined) update.price_92 = price92
   if (price95 !== undefined) update.price_95 = price95

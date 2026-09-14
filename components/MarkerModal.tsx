@@ -128,14 +128,20 @@ export function MarkerModal({
         </div>
 
         <div className="px-4 py-3 space-y-2 border-b border-slate-200 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300">
-          <p>
-            Добавил: <span className="font-medium text-slate-900 dark:text-slate-100">{marker.author_name ?? 'Аноним'}</span>{' '}
-            · {timeAgo(marker.created_at)}
-          </p>
-          {marker.note && <p className="text-slate-800 dark:text-slate-200">{marker.note}</p>}
-          <p className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-            <Clock size={14} /> {timeLeft(marker.expires_at)}
-          </p>
+          {marker.source === 'osm' ? (
+            marker.note && <p className="font-medium text-slate-900 dark:text-slate-100">{marker.note}</p>
+          ) : (
+            <p>
+              Добавил: <span className="font-medium text-slate-900 dark:text-slate-100">{marker.author_name ?? 'Аноним'}</span>{' '}
+              · {timeAgo(marker.created_at)}
+            </p>
+          )}
+          {marker.source !== 'osm' && marker.note && <p className="text-slate-800 dark:text-slate-200">{marker.note}</p>}
+          {marker.source !== 'osm' && (
+            <p className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+              <Clock size={14} /> {timeLeft(marker.expires_at)}
+            </p>
+          )}
         </div>
 
         {marker.kind === 'gas' && (marker.price92 || marker.price95 || marker.priceDt) && (
@@ -230,7 +236,7 @@ export function MarkerModal({
               onClick={confirmStillHere}
               className="flex-1 flex items-center justify-center gap-1.5 rounded-full bg-emerald-600 text-white text-sm font-medium py-2.5 disabled:opacity-50"
             >
-              <RefreshCcw size={16} /> Всё ещё там
+              <RefreshCcw size={16} /> {marker.source === 'osm' ? 'Обновить данные' : 'Всё ещё там'}
             </button>
             {user?.role === 'admin' && (
               <button
