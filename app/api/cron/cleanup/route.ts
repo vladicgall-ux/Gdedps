@@ -20,12 +20,18 @@ export async function GET(req: NextRequest) {
   }
 
   const db = supabaseAdmin()
-  const { data, error } = await db
-    .from('dps_markers')
-    .delete()
-    .lt('expires_at', new Date().toISOString())
-    .select('id')
+  const nowIso = new Date().toISOString()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ deleted: data?.length ?? 0 })
+  const [markers, loginCodes] = await Promise.all([
+    db.from('dps_markers').delete().lt('expires_at', nowIso).select('id'),
+    db.from('telegram_login_codes').delete().lt('expires_at', nowIso).select('code')
+  ])
+
+  if (markers.error) return NextResponse.json({ error: markers.error.message }, { status: 500 })
+  if (loginCodes.error) return NextResponse.json({ error: loginCodes.error.message }, { status: 500 })
+
+  return NextResponse.json({
+    deletedMarkers: markers.data?.length ?? 0,
+    deletedLoginCodes: loginCodes.data?.length ?? 0
+  })
 }
