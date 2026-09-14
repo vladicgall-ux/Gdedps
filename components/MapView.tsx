@@ -23,6 +23,7 @@ export default function MapView() {
   const [selected, setSelected] = useState<DpsMarker | null>(null)
   const [adding, setAdding] = useState(false)
   const [picking, setPicking] = useState(false)
+  const [noteInput, setNoteInput] = useState('')
   const [toast, setToast] = useState<string | null>(null)
 
   const showToast = (msg: string) => {
@@ -146,6 +147,7 @@ export default function MapView() {
     if (userPos && mapRef.current) {
       mapRef.current.setView(userPos, 17)
     }
+    setNoteInput('')
     setPicking(true)
   }
 
@@ -153,16 +155,18 @@ export default function MapView() {
     const map = mapRef.current
     if (!map) return
     const center = map.getCenter()
+    const note = noteInput.trim()
     setAdding(true)
     try {
       const res = await fetch('/api/markers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat: center.lat, lng: center.lng })
+        body: JSON.stringify({ lat: center.lat, lng: center.lng, note: note || undefined })
       })
       if (!res.ok) throw new Error()
       showToast('Метка добавлена')
       setPicking(false)
+      setNoteInput('')
       fetchMarkers()
     } catch {
       showToast('Не удалось добавить метку')
@@ -254,22 +258,31 @@ export default function MapView() {
 
       <div className="absolute inset-x-0 bottom-0 z-[500] px-4 pb-[calc(var(--app-safe-bottom)+16px)] pt-6 pointer-events-none bg-gradient-to-t from-white/90 dark:from-slate-950/90 to-transparent">
         {picking ? (
-          <div className="pointer-events-auto flex gap-2">
-            <button
-              onClick={() => setPicking(false)}
-              disabled={adding}
-              className="flex items-center justify-center gap-2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold py-3.5 px-5 shadow-lg active:scale-[0.98] transition disabled:opacity-60"
-            >
-              <X size={20} /> Отмена
-            </button>
-            <button
-              onClick={confirmPickedLocation}
-              disabled={adding}
-              className="flex-1 flex items-center justify-center gap-2 rounded-full bg-red-600 text-white font-semibold py-3.5 shadow-lg active:scale-[0.98] transition disabled:opacity-60"
-            >
-              <Check size={20} />
-              {adding ? 'Добавляем...' : 'Поставить метку здесь'}
-            </button>
+          <div className="pointer-events-auto space-y-2">
+            <input
+              value={noteInput}
+              onChange={(e) => setNoteInput(e.target.value)}
+              placeholder="Комментарий (необязательно): пост слева, у поворота..."
+              maxLength={500}
+              className="w-full rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm shadow focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPicking(false)}
+                disabled={adding}
+                className="flex items-center justify-center gap-2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold py-3.5 px-5 shadow-lg active:scale-[0.98] transition disabled:opacity-60"
+              >
+                <X size={20} /> Отмена
+              </button>
+              <button
+                onClick={confirmPickedLocation}
+                disabled={adding}
+                className="flex-1 flex items-center justify-center gap-2 rounded-full bg-red-600 text-white font-semibold py-3.5 shadow-lg active:scale-[0.98] transition disabled:opacity-60"
+              >
+                <Check size={20} />
+                {adding ? 'Добавляем...' : 'Поставить метку здесь'}
+              </button>
+            </div>
           </div>
         ) : (
           <button
