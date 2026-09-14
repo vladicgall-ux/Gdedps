@@ -94,6 +94,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // older clients without this method -- expand() above already covers them
     }
 
+    // VK Mini Apps show their own loading spinner over the page until the
+    // app explicitly reports it's ready via VKWebAppInit -- without this
+    // call the app never becomes visible inside VK at all.
+    if (detectPlatform() === 'vk') {
+      window.vkBridge?.send('VKWebAppInit').catch(() => {})
+    }
+
     async function init() {
       const existing = await refresh()
       if (existing) return

@@ -15,6 +15,9 @@ declare global {
         requestContact?: (callback: (shared: boolean) => void) => void
       }
     }
+    vkBridge?: {
+      send: (method: string, params?: Record<string, unknown>) => Promise<unknown>
+    }
   }
 }
 
