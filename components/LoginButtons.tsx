@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RotateCw, Copy, Check } from 'lucide-react'
 import { useAuth } from './AuthProvider'
-import { TelegramIcon, VkIcon, MaxIcon } from './icons/BrandIcons'
+import { TelegramIcon, VkIcon } from './icons/BrandIcons'
 
 function randomString(len: number) {
   const bytes = new Uint8Array(len)
@@ -181,7 +181,8 @@ export function LoginButtons() {
         disabled={busy === 'max'}
         className="w-full flex items-center justify-center gap-2 rounded-full bg-slate-800 text-white font-medium py-3 disabled:opacity-60"
       >
-        <MaxIcon size={18} /> Войти через MAX
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/max-logo.png" alt="" className="w-[18px] h-[18px] rounded-[5px]" /> Войти через MAX
       </button>
 
       {error && <p className="text-sm text-red-500 text-center">{error}</p>}

@@ -16,20 +16,5 @@ export function VkIcon({ size = 18 }: { size?: number }) {
   )
 }
 
-// MAX (max.ru, VK's messenger) has no published brand-icon asset at the
-// time of writing -- this is a plain, generic wordmark placeholder, not a
-// claimed official logo. Swap it for the real one as soon as it's public.
-export function MaxIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1" y="1" width="22" height="22" rx="6" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M6 16V8l3 4 3-4v8M15 8h4.5M17.25 8v8"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
+// MAX's own logo is a raster asset (public/max-logo.png), used directly
+// via <img> in LoginButtons rather than as an inline SVG component here.
